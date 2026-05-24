@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronRight, Check } from "lucide-react";
 import { THEMES, Theme } from "./themes";
 import { EXPENSE_CATS, BudgetConfig } from "./data";
 import { PickerSheet, PickerOption } from "./PickerSheet";
+import { saveApiKey, getApiKey, clearApiKey, hasApiKey, maskApiKey } from "./aiService";
 
 type Props = {
   theme: Theme;
@@ -157,10 +158,114 @@ function BudgetSheet({ open, budget, theme: T, onSave, onClose }: {
   );
 }
 
+// ── API Key Sheet ──
+function ApiKeySheet({ open, theme: T, onClose, showToast }: {
+  open: boolean; theme: Theme; onClose: () => void; showToast: (msg: string) => void;
+}) {
+  const [inputKey, setInputKey] = useState("");
+  const [configured, setConfigured] = useState(hasApiKey());
+  const currentKey = getApiKey();
+
+  useEffect(() => {
+    if (open) setConfigured(hasApiKey());
+  }, [open]);
+
+  function save() {
+    const trimmed = inputKey.trim();
+    if (!trimmed) return;
+    saveApiKey(trimmed);
+    setConfigured(true);
+    setInputKey("");
+    showToast("API Key 已保存");
+    onClose();
+  }
+
+  function clear() {
+    clearApiKey();
+    setConfigured(false);
+    setInputKey("");
+    showToast("API Key 已清除");
+    onClose();
+  }
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={onClose}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", zIndex: 1000 }} />
+          <motion.div
+            initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 30, stiffness: 350 }}
+            style={{
+              position: "fixed", bottom: 0, left: 0, right: 0,
+              maxWidth: 480, margin: "0 auto",
+              background: T.card, borderRadius: "20px 20px 0 0",
+              zIndex: 1001, paddingBottom: "env(safe-area-inset-bottom, 16px)",
+              boxShadow: "0 -4px 30px rgba(0,0,0,0.12)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "center", padding: "12px 0 4px" }}>
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: T.border }} />
+            </div>
+            <p style={{ textAlign: "center", color: T.text, fontSize: 15, fontWeight: 600, padding: "8px 0 6px" }}>AI 分析设置</p>
+            <p style={{ textAlign: "center", color: T.muted, fontSize: 12, padding: "0 20px 16px", lineHeight: 1.5 }}>
+              输入 Anthropic API Key，用于生成智能消费洞察
+            </p>
+
+            <div style={{ padding: "0 20px" }}>
+              {configured && currentKey && (
+                <p style={{ color: T.sub, fontSize: 12, marginBottom: 8 }}>
+                  当前：{maskApiKey(currentKey)}
+                </p>
+              )}
+              <input
+                type="password"
+                value={inputKey}
+                onChange={e => setInputKey(e.target.value)}
+                placeholder={configured ? "输入新 Key 替换..." : "sk-ant-api03-..."}
+                style={{
+                  width: "100%", boxSizing: "border-box",
+                  background: T.inputBg, border: `1px solid ${T.border}`,
+                  borderRadius: 10, padding: "12px 14px",
+                  color: T.text, fontSize: 14,
+                  outline: "none", fontFamily: "inherit",
+                }}
+              />
+              <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+                <motion.button whileTap={{ scale: 0.97 }} onClick={save}
+                  style={{
+                    flex: 1, padding: "13px", background: T.primary,
+                    border: "none", borderRadius: 12, color: "#fff",
+                    fontSize: 15, fontWeight: 500, cursor: "pointer",
+                    opacity: inputKey.trim() ? 1 : 0.5,
+                  }}>保存</motion.button>
+                {configured && (
+                  <motion.button whileTap={{ scale: 0.97 }} onClick={clear}
+                    style={{
+                      padding: "13px 20px", background: "none",
+                      border: `1px solid ${T.border}`, borderRadius: 12,
+                      color: "#D9534F", fontSize: 15, fontWeight: 500, cursor: "pointer",
+                    }}>清除</motion.button>
+                )}
+              </div>
+              <p style={{ color: T.muted, fontSize: 11, textAlign: "center", marginTop: 14, marginBottom: 8, lineHeight: 1.5 }}>
+                Key 仅存储在本设备，不会上传至任何服务器
+              </p>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
+
 // ── Settings Component ──
 export function Settings({ theme: T, onThemeChange, budget, onBudgetChange, showToast }: Props) {
   const [darkMode, setDarkMode] = useState(false);
   const [showBudgetSheet, setShowBudgetSheet] = useState(false);
+  const [showApiKeySheet, setShowApiKeySheet] = useState(false);
   const [defaultCat, setDefaultCat] = useState("food");
   const [currency, setCurrency] = useState("cny");
   const [fontSize, setFontSize] = useState("standard");
@@ -218,6 +323,8 @@ export function Settings({ theme: T, onThemeChange, budget, onBudgetChange, show
           icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 7v10a2 2 0 002 2h12a2 2 0 002-2V7M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>} />
         <Row label="货币单位" value={currencyDisplay} T={T} onClick={() => setPickerOpen("currency")}
           icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6"/><path d="M12 7v10M9 10h6M9 14h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>} />
+        <Row label="AI 分析" value={hasApiKey() ? "已配置" : "未配置"} T={T} onClick={() => setShowApiKeySheet(true)}
+          icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>} />
         <Row label="密码与安全" T={T} last onClick={() => showToast("功能开发中")}
           icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.6"/><path d="M8 11V7a4 4 0 018 0v4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>} />
       </motion.div>
@@ -305,6 +412,14 @@ export function Settings({ theme: T, onThemeChange, budget, onBudgetChange, show
         theme={T}
         onSelect={setFontSize}
         onClose={() => setPickerOpen(null)}
+      />
+
+      {/* ── API Key Sheet ── */}
+      <ApiKeySheet
+        open={showApiKeySheet}
+        theme={T}
+        onClose={() => setShowApiKeySheet(false)}
+        showToast={showToast}
       />
     </div>
   );

@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ChevronRight, ChevronDown, Calendar } from "lucide-react";
+import { ChevronRight, ChevronDown, Calendar, Sparkles, Loader2 } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { CATEGORIES, EXPENSE_CATS, Transaction, BudgetConfig } from "./data";
 import { Theme } from "./themes";
 import { InkIllustration } from "./InkIllustration";
+import { hasApiKey, generateObservations, Observation, MonthlyData } from "./aiService";
 
 type Props = {
   transactions: Transaction[];
@@ -61,19 +62,59 @@ export function Analytics({ transactions, theme: T, budget, showToast }: Props) 
   const top5 = showAllTop ? allTop : allTop.slice(0, 5);
   const maxCount = allTop.length > 0 ? allTop[0][1].count : 1;
 
-  // Observations
+  // ── AI Observations ──
+  const [aiObs, setAiObs] = useState<Record<string, Observation[]>>({});
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  // Fallback template observations
   const foodTxns = monthTxns.filter(t => t.category === "food" && t.type === "expense");
   const foodTotal = foodTxns.reduce((s, t) => s + t.amount, 0);
-  const baseObs = [
-    { icon: "🌿", text: `本月支出节奏平稳。` },
-    foodTxns.length > 0 ? { icon: "🍵", text: `奶茶消费 ${foodTxns.length} 次，共 ¥${foodTotal.toFixed(0)}。` } : null,
-    catList[0] ? { icon: "🍽️", text: `${catList[0].name}支出占饮食类约 ${((catList[0].value / pieTotal)*100).toFixed(0)}%，主要集中在工作日。` } : null,
-  ].filter(Boolean) as { icon: string; text: string }[];
-  const extraObs = [
-    balance >= 0 ? { icon: "💰", text: `本月结余 ¥${balance.toLocaleString()}，财务状态健康。` } : { icon: "⚠️", text: `本月支出超收入 ¥${Math.abs(balance).toLocaleString()}，建议控制支出。` },
-    { icon: "📊", text: `共记录 ${monthTxns.length} 笔交易，其中支出 ${monthTxns.filter(t => t.type === "expense").length} 笔。` },
+  const fallbackObs: Observation[] = [
+    { icon: "🌿", text: `本月支出 ¥${expense.toLocaleString()}，${balance >= 0 ? "结余健康" : "注意超支"}。` },
+    ...(foodTxns.length > 0 ? [{ icon: "🍵", text: `饮食消费 ${foodTxns.length} 笔，共 ¥${foodTotal.toFixed(0)}。` }] : []),
+    ...(catList[0] ? [{ icon: "📊", text: `${catList[0].name}占比最高 ${((catList[0].value / pieTotal)*100).toFixed(0)}%。` }] : []),
   ];
-  const observations = showMoreObs ? [...baseObs, ...extraObs] : baseObs;
+
+  const cachedObs = aiObs[monthStr];
+  const observations = cachedObs || fallbackObs;
+
+  const fetchAiObs = useCallback(async () => {
+    if (aiLoading || aiObs[monthStr]) return;
+    setAiLoading(true);
+    setAiError(null);
+
+    // Build data for prompt
+    const descMap2: Record<string, { count: number; total: number }> = {};
+    monthTxns.filter(t => t.type === "expense").forEach(t => {
+      if (!descMap2[t.description]) descMap2[t.description] = { count: 0, total: 0 };
+      descMap2[t.description].count++;
+      descMap2[t.description].total += t.amount;
+    });
+    const topItems = Object.entries(descMap2)
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 5)
+      .map(([desc, info]) => ({ desc, count: info.count, total: info.total }));
+
+    const data: MonthlyData = {
+      month: `${year}年${monthIdx + 1}月`,
+      income,
+      expense,
+      budget: { total: budget.total, used: budget.total > 0 ? (expense / budget.total) * 100 : 0 },
+      categories: catList.map(c => ({ name: c.name, amount: c.value })),
+      topItems,
+    };
+
+    try {
+      const result = await generateObservations(data);
+      setAiObs(prev => ({ ...prev, [monthStr]: result }));
+    } catch (e: any) {
+      setAiError(e.message || "分析失败");
+      showToast("AI 分析失败，请检查 API Key");
+    } finally {
+      setAiLoading(false);
+    }
+  }, [monthStr, aiLoading, aiObs, monthTxns, year, monthIdx, income, expense, budget, catList, showToast]);
 
   // Budget data for budget tab
   const budgetPct = budget.total > 0 ? (expense / budget.total) * 100 : 0;
@@ -173,21 +214,55 @@ export function Analytics({ transactions, theme: T, budget, showToast }: Props) 
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span style={{ color: T.text, fontSize: 14, fontWeight: 600 }}>AI 观察</span>
-                <span style={{ fontSize: 14 }}>✨</span>
+                <Sparkles size={14} color={T.primary} />
               </div>
-              <motion.button whileTap={{ scale: 0.9 }}
-                onClick={() => setShowMoreObs(!showMoreObs)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: T.sub, fontSize: 12, display: "flex", alignItems: "center", gap: 2 }}>
-                {showMoreObs ? "收起" : "查看详情"} <ChevronRight size={13} />
-              </motion.button>
+              {hasApiKey() && !cachedObs && !aiLoading && (
+                <motion.button whileTap={{ scale: 0.9 }}
+                  onClick={fetchAiObs}
+                  style={{
+                    background: `${T.primary}12`, border: `1px solid ${T.primary}30`,
+                    borderRadius: 14, cursor: "pointer", color: T.primary,
+                    fontSize: 12, fontWeight: 500, padding: "5px 12px",
+                    display: "flex", alignItems: "center", gap: 4,
+                  }}>
+                  <Sparkles size={11} /> 生成 AI 分析
+                </motion.button>
+              )}
+              {cachedObs && (
+                <motion.button whileTap={{ scale: 0.9 }}
+                  onClick={() => { setAiObs(prev => { const next = { ...prev }; delete next[monthStr]; return next; }); }}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: T.sub, fontSize: 12, display: "flex", alignItems: "center", gap: 2 }}>
+                  刷新 <ChevronRight size={13} />
+                </motion.button>
+              )}
             </div>
-            {observations.map((obs, i) => (
-              <motion.div key={i} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.12 + i * 0.06 }}
-                style={{ display: "flex", gap: 8, marginBottom: i < observations.length - 1 ? 10 : 0, alignItems: "flex-start" }}>
-                <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>{obs.icon}</span>
-                <p style={{ color: T.sub, fontSize: 13, lineHeight: 1.6 }}>{obs.text}</p>
-              </motion.div>
-            ))}
+
+            {aiLoading ? (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "20px 0" }}>
+                <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
+                  <Loader2 size={18} color={T.primary} />
+                </motion.div>
+                <span style={{ color: T.sub, fontSize: 13 }}>AI 正在分析...</span>
+              </div>
+            ) : (
+              <>
+                {observations.map((obs, i) => (
+                  <motion.div key={`${monthStr}-${i}`} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.12 + i * 0.06 }}
+                    style={{ display: "flex", gap: 8, marginBottom: i < observations.length - 1 ? 10 : 0, alignItems: "flex-start" }}>
+                    <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>{obs.icon}</span>
+                    <p style={{ color: T.sub, fontSize: 13, lineHeight: 1.6 }}>{obs.text}</p>
+                  </motion.div>
+                ))}
+                {!hasApiKey() && (
+                  <p style={{ color: T.muted, fontSize: 11, marginTop: 10, textAlign: "center" }}>
+                    在设置中配置 API Key 获取 AI 智能洞察
+                  </p>
+                )}
+                {aiError && (
+                  <p style={{ color: "#D9534F", fontSize: 11, marginTop: 8 }}>{aiError}</p>
+                )}
+              </>
+            )}
             <div style={{ position: "absolute", right: -10, bottom: -10, opacity: 0.35 }}>
               <InkIllustration width={100} height={80} />
             </div>

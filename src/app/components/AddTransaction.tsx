@@ -25,6 +25,7 @@ export function AddTransaction({ onAdd, theme: T, onBack, budget, transactions }
   const [customTag, setCustomTag] = useState("");
   const [date]                  = useState(new Date().toISOString().slice(0, 10));
   const [done, setDone]         = useState(false);
+  const [showKeypad, setShowKeypad] = useState(false);
 
   const cats      = type === "expense" ? EXPENSE_CATS : INCOME_CATS;
   const activeCat = cats.find(c => c.id === category) ?? cats[0];
@@ -112,8 +113,16 @@ export function AddTransaction({ onAdd, theme: T, onBack, budget, transactions }
       {/* ── Scrollable content (above keyboard) ── */}
       <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
 
-        {/* Amount display */}
-        <div style={{ textAlign: "center", padding: "4px 0 10px" }}>
+        {/* Amount display — tap to show keyboard */}
+        <motion.div
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setShowKeypad(true)}
+          style={{
+            textAlign: "center", padding: "4px 0 10px", cursor: "pointer",
+            borderBottom: !showKeypad && !done ? `2px dashed ${T.border}` : "2px solid transparent",
+            marginLeft: 20, marginRight: 20, transition: "border-color 0.2s",
+          }}
+        >
           <AnimatePresence mode="wait">
             <motion.div
               key={done ? "done" : (amount || "0")}
@@ -131,7 +140,10 @@ export function AddTransaction({ onAdd, theme: T, onBack, budget, transactions }
               </span>
             </motion.div>
           </AnimatePresence>
-        </div>
+          {!showKeypad && !amount && !done && (
+            <p style={{ color: T.muted, fontSize: 11, marginTop: 4 }}>点击输入金额</p>
+          )}
+        </motion.div>
 
         {/* Type toggle — equal buttons */}
         <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
@@ -161,7 +173,7 @@ export function AddTransaction({ onAdd, theme: T, onBack, budget, transactions }
           {displayCats.map(cat => {
             const active = category === cat.id;
             return (
-              <motion.button key={cat.id} whileTap={{ scale: 0.88 }} onClick={() => { setCategory(cat.id); setSelectedTags([]); }}
+              <motion.button key={cat.id} whileTap={{ scale: 0.88 }} onClick={() => { setCategory(cat.id); setSelectedTags([]); setShowKeypad(false); }}
                 style={{
                   display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
                   padding: "8px 2px", borderRadius: 12, border: "none", cursor: "pointer",
@@ -313,6 +325,7 @@ export function AddTransaction({ onAdd, theme: T, onBack, budget, transactions }
           <input
             value={note}
             onChange={e => { if (e.target.value.length <= 50) setNote(e.target.value); }}
+            onFocus={() => setShowKeypad(false)}
             placeholder="例如：霸王茶姬"
             style={{
               width: "100%", boxSizing: "border-box",
@@ -330,33 +343,44 @@ export function AddTransaction({ onAdd, theme: T, onBack, budget, transactions }
         </div>
       </div>
 
-      {/* ── Number Pad — FIXED at bottom ── */}
-      <div style={{
-        flexShrink: 0,
-        display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1,
-        background: T.border, borderRadius: "14px 14px 0 0", overflow: "hidden",
-        boxShadow: "0 -2px 8px rgba(0,0,0,0.04)",
-      }}>
-        {["1","2","3","4","5","6","7","8","9",".","0","del"].map(key => (
-          <motion.button
-            key={key}
-            whileTap={{ scale: 0.92, backgroundColor: `${T.primary}15` }}
-            onClick={() => handleKeyPress(key)}
-            style={{
-              padding: "10px 0",
-              background: T.card,
-              border: "none", cursor: "pointer",
-              fontSize: key === "del" ? 0 : 18,
-              fontWeight: 400,
-              color: T.text,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontFamily: "inherit",
-            }}
+      {/* ── Number Pad — slide up when active ── */}
+      <AnimatePresence>
+        {showKeypad && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ type: "spring", damping: 28, stiffness: 350 }}
+            style={{ flexShrink: 0, overflow: "hidden" }}
           >
-            {key === "del" ? <Delete size={18} color={T.sub} /> : key}
-          </motion.button>
-        ))}
-      </div>
+            <div style={{
+              display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1,
+              background: T.border, borderRadius: "14px 14px 0 0", overflow: "hidden",
+              boxShadow: "0 -2px 8px rgba(0,0,0,0.04)",
+            }}>
+              {["1","2","3","4","5","6","7","8","9",".","0","del"].map(key => (
+                <motion.button
+                  key={key}
+                  whileTap={{ scale: 0.92, backgroundColor: `${T.primary}15` }}
+                  onClick={() => handleKeyPress(key)}
+                  style={{
+                    padding: "10px 0",
+                    background: T.card,
+                    border: "none", cursor: "pointer",
+                    fontSize: key === "del" ? 0 : 18,
+                    fontWeight: 400,
+                    color: T.text,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {key === "del" ? <Delete size={18} color={T.sub} /> : key}
+                </motion.button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
