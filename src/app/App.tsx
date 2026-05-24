@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Dashboard } from "./components/Dashboard";
-import { AddTransaction } from "./components/AddTransaction";
+import { RecordTab } from "./components/RecordTab";
 import { Analytics } from "./components/Analytics";
 import { Settings } from "./components/Settings";
 import { Toast } from "./components/Toast";
@@ -16,6 +16,7 @@ export default function App() {
   const [theme, setTheme]       = useState<Theme>(DEFAULT_THEME);
   const [budget, setBudget]     = useState<BudgetConfig>(DEFAULT_BUDGET);
   const [toast, setToast]       = useState<string | null>(null);
+  const [recordView, setRecordView] = useState<"history" | "add">("history");
 
   const T = theme;
 
@@ -24,6 +25,10 @@ export default function App() {
 
   const addTxn = (t: Omit<Transaction, "id">) => {
     setTxns(p => [{ ...t, id: Date.now().toString() }, ...p]);
+  };
+
+  const deleteTxn = (id: string) => {
+    setTxns(p => p.filter(t => t.id !== id));
   };
 
   return (
@@ -46,6 +51,7 @@ export default function App() {
         paddingLeft: tab === "record" ? 0 : 16,
         paddingRight: tab === "record" ? 0 : 16,
         paddingBottom: tab === "record" ? 0 : 70,
+        minHeight: 0,
         display: "flex",
         flexDirection: "column",
       }}>
@@ -62,8 +68,8 @@ export default function App() {
                 transactions={transactions}
                 theme={T}
                 budget={budget}
-                onAddTap={() => setTab("record")}
-                onViewMore={() => setTab("record")}
+                onAddTap={() => { setRecordView("add"); setTab("record"); }}
+                onViewMore={() => { setRecordView("history"); setTab("record"); }}
                 onViewBudget={() => setTab("stats")}
                 showToast={showToast}
               />
@@ -77,12 +83,13 @@ export default function App() {
               />
             )}
             {tab === "record" && (
-              <AddTransaction
+              <RecordTab
+                transactions={transactions}
                 onAdd={addTxn}
+                onDelete={deleteTxn}
                 theme={T}
                 budget={budget}
-                transactions={transactions}
-                onBack={() => setTab("home")}
+                initialView={recordView}
               />
             )}
             {tab === "settings" && (
