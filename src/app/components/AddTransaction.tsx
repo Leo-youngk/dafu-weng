@@ -86,262 +86,293 @@ export function AddTransaction({ onAdd, theme: T, onBack, budget, transactions }
 
   const displayCats = showAllCats ? cats : cats.slice(0, 5);
 
+  const hasTags = type === "expense" && (QUICK_TAGS[category] || []).length > 0;
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: T.bg, padding: "0 20px" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: T.bg }}>
 
       {/* ── Header ── */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "16px 0 8px", flexShrink: 0,
+        padding: "16px 24px 0", flexShrink: 0,
       }}>
         <motion.button whileTap={{ scale: 0.88 }} onClick={onBack}
           style={{ background: "none", border: "none", cursor: "pointer", padding: 4, color: T.sub }}>
           <ChevronLeft size={22} />
         </motion.button>
         <span style={{ color: T.text, fontSize: 16, fontWeight: 600 }}>记录一笔</span>
-        <motion.button whileTap={{ scale: 0.88 }} onClick={submit}
-          style={{
-            width: 32, height: 32, borderRadius: "50%",
-            background: amount && +amount > 0 ? T.primary : T.muted,
-            border: "none", cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-          <Check size={16} color="#fff" strokeWidth={2.5} />
-        </motion.button>
+        <div style={{ width: 30 }} />
       </div>
 
-      {/* ── Scrollable content (above keyboard) ── */}
-      <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+      {/* ── Scrollable content ── */}
+      <div style={{
+        flex: 1, overflowY: "auto", minHeight: 0,
+        display: "flex", flexDirection: "column",
+        justifyContent: showKeypad ? "flex-start" : "center",
+        padding: "0 24px",
+        transition: "justify-content 0.2s",
+      }}>
+        <div style={{ maxWidth: "100%" }}>
 
-        {/* Amount display — tap to show keyboard */}
-        <motion.div
-          whileTap={{ scale: 0.98 }}
-          onClick={() => setShowKeypad(true)}
-          style={{
-            textAlign: "center", padding: "4px 0 10px", cursor: "pointer",
-            borderBottom: !showKeypad && !done ? `2px dashed ${T.border}` : "2px solid transparent",
-            marginLeft: 20, marginRight: 20, transition: "border-color 0.2s",
-          }}
-        >
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={done ? "done" : (amount || "0")}
-              initial={{ opacity: 0.6 }}
-              animate={{ opacity: 1 }}
-              style={{ display: "inline-flex", alignItems: "baseline", gap: 4 }}
-            >
-              <span style={{ color: T.sub, fontSize: 18, fontWeight: 300 }}>¥</span>
-              <span style={{
-                fontSize: 38, fontWeight: 300, letterSpacing: -2,
-                color: done ? T.primary : amount ? T.text : T.muted,
-                fontVariantNumeric: "tabular-nums", lineHeight: 1,
-              }}>
-                {done ? "✓" : (amount || "0")}
-              </span>
-            </motion.div>
-          </AnimatePresence>
-          {!showKeypad && !amount && !done && (
-            <p style={{ color: T.muted, fontSize: 11, marginTop: 4 }}>点击输入金额</p>
-          )}
-        </motion.div>
-
-        {/* Type toggle — equal buttons */}
-        <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
-          {(["expense", "income"] as const).map(t => (
-            <motion.button key={t} whileTap={{ scale: 0.95 }}
-              onClick={() => switchType(t)}
-              style={{
-                flex: 1, padding: "8px 0", borderRadius: 10, border: "none", cursor: "pointer",
-                fontSize: 14, fontWeight: 500,
-                background: type === t ? T.primary : T.card,
-                color: type === t ? "#fff" : T.sub,
-                boxShadow: type === t ? `0 2px 10px ${T.primary}44` : "none",
-                transition: "all 0.15s",
-              }}
-            >{t === "expense" ? "支出" : "收入"}</motion.button>
-          ))}
-        </div>
-
-        {/* Category section */}
-        <p style={{ color: T.text, fontSize: 13, fontWeight: 600, marginBottom: 6 }}>分类</p>
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(6, 1fr)",
-          gap: 6,
-          marginBottom: 4,
-        }}>
-          {displayCats.map(cat => {
-            const active = category === cat.id;
-            return (
-              <motion.button key={cat.id} whileTap={{ scale: 0.88 }} onClick={() => { setCategory(cat.id); setSelectedTags([]); setShowKeypad(false); }}
-                style={{
-                  display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
-                  padding: "8px 2px", borderRadius: 12, border: "none", cursor: "pointer",
-                  background: active ? cat.bg : "transparent",
-                  transition: "all 0.14s",
-                }}
-              >
-                <div style={{
-                  width: 34, height: 34, borderRadius: 10,
-                  background: active ? `${cat.color}20` : T.card,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 17, boxShadow: active ? "none" : "0 1px 3px rgba(0,0,0,0.06)",
-                }}>
-                  {cat.icon}
-                </div>
-                <span style={{ fontSize: 10, color: active ? cat.color : T.sub, fontWeight: active ? 600 : 400 }}>
-                  {cat.name}
-                </span>
-              </motion.button>
-            );
-          })}
-          {/* 其他/展开 button */}
-          {!showAllCats && cats.length > 5 && (
-            <motion.button whileTap={{ scale: 0.88 }} onClick={() => setShowAllCats(true)}
-              style={{
-                display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
-                padding: "8px 2px", borderRadius: 12, border: "none", cursor: "pointer",
-                background: "transparent",
-              }}
-            >
-              <div style={{
-                width: 34, height: 34, borderRadius: 10,
-                background: T.card, display: "flex", alignItems: "center", justifyContent: "center",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-              }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <circle cx="5" cy="12" r="2" fill={T.muted} />
-                  <circle cx="12" cy="12" r="2" fill={T.muted} />
-                  <circle cx="19" cy="12" r="2" fill={T.muted} />
-                </svg>
-              </div>
-              <span style={{ fontSize: 10, color: T.sub }}>其他</span>
-            </motion.button>
-          )}
-        </div>
-
-        {/* Budget hint for selected category */}
-        {type === "expense" && catBudget && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+          {/* ── Amount Hero ── */}
+          <motion.div
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setShowKeypad(true)}
             style={{
-              fontSize: 11, marginBottom: 14, marginTop: 4, paddingLeft: 2,
-              color: catPct > 100 ? "#D9534F" : catPct > 80 ? "#E8934A" : T.primary,
+              textAlign: "center",
+              padding: showKeypad ? "8px 0 16px" : "24px 0 28px",
+              cursor: "pointer",
+              transition: "padding 0.3s ease",
             }}
           >
-            {activeCat.name}本月已用 ¥{catSpent.toLocaleString()}/¥{catBudget.toLocaleString()}
-            {catPct > 100 && " · 已超支"}
-            {catPct > 80 && catPct <= 100 && " · 接近上限"}
-          </motion.p>
-        )}
-        {type === "expense" && !catBudget && (
-          <div style={{ height: 14, marginBottom: 4 }} />
-        )}
+            {/* Type toggle — pill style */}
+            <div style={{
+              display: "inline-flex", gap: 0,
+              background: T.card, borderRadius: 20, padding: 3,
+              marginBottom: showKeypad ? 12 : 20,
+              boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+            }}>
+              {(["expense", "income"] as const).map(t => (
+                <motion.button key={t} whileTap={{ scale: 0.95 }}
+                  onClick={(e) => { e.stopPropagation(); switchType(t); }}
+                  style={{
+                    padding: "6px 24px", borderRadius: 18, border: "none", cursor: "pointer",
+                    fontSize: 13, fontWeight: 500,
+                    background: type === t ? T.primary : "transparent",
+                    color: type === t ? "#fff" : T.sub,
+                    transition: "all 0.15s",
+                  }}
+                >{t === "expense" ? "支出" : "收入"}</motion.button>
+              ))}
+            </div>
 
-        {/* Tags (multi-select, per-category) */}
-        {type === "expense" && (QUICK_TAGS[category] || []).length > 0 && (
-          <>
-            <p style={{ color: T.text, fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-              标签 <span style={{ fontWeight: 400, color: T.muted, fontSize: 11 }}>（可多选）</span>
-            </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 14 }}>
-              {(QUICK_TAGS[category] || []).map(tag => {
-                const isActive = selectedTags.includes(tag);
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={done ? "done" : (amount || "0")}
+                initial={{ opacity: 0.6, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 6 }}
+              >
+                <span style={{ color: T.sub, fontSize: 22, fontWeight: 300 }}>¥</span>
+                <span style={{
+                  fontSize: showKeypad ? 44 : 52, fontWeight: 200, letterSpacing: -2,
+                  color: done ? T.primary : amount ? T.text : T.muted,
+                  fontVariantNumeric: "tabular-nums", lineHeight: 1,
+                  transition: "font-size 0.3s ease",
+                }}>
+                  {done ? "✓" : (amount || "0.00")}
+                </span>
+              </motion.div>
+            </AnimatePresence>
+
+            {!showKeypad && !amount && !done && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                style={{ color: T.muted, fontSize: 12, marginTop: 8, letterSpacing: 0.5 }}
+              >
+                点击输入金额
+              </motion.p>
+            )}
+          </motion.div>
+
+          {/* ── Category Grid ── */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(5, 1fr)",
+              gap: 8,
+            }}>
+              {displayCats.map(cat => {
+                const active = category === cat.id;
                 return (
-                  <motion.button
-                    key={tag} whileTap={{ scale: 0.9 }}
-                    onClick={() => toggleTag(tag)}
+                  <motion.button key={cat.id} whileTap={{ scale: 0.88 }}
+                    onClick={() => { setCategory(cat.id); setSelectedTags([]); setShowKeypad(false); }}
                     style={{
-                      padding: "6px 12px", borderRadius: 18, border: "none", cursor: "pointer", fontSize: 12,
-                      background: isActive ? `${T.primary}15` : T.card,
-                      color: isActive ? T.primary : T.sub,
-                      fontWeight: isActive ? 600 : 400,
-                      outline: isActive ? `1.5px solid ${T.primary}40` : "none",
-                      display: "flex", alignItems: "center", gap: 4,
-                      boxShadow: isActive ? "none" : "0 1px 3px rgba(0,0,0,0.04)",
+                      display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+                      padding: "10px 4px", borderRadius: 14, border: "none", cursor: "pointer",
+                      background: active ? cat.bg : "transparent",
+                      transition: "all 0.14s",
                     }}
                   >
-                    {tag}
+                    <div style={{
+                      width: 40, height: 40, borderRadius: 12,
+                      background: active ? `${cat.color}20` : T.card,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 20, boxShadow: active ? "none" : "0 1px 4px rgba(0,0,0,0.05)",
+                    }}>
+                      {cat.icon}
+                    </div>
+                    <span style={{ fontSize: 11, color: active ? cat.color : T.sub, fontWeight: active ? 600 : 400 }}>
+                      {cat.name}
+                    </span>
                   </motion.button>
                 );
               })}
-              {/* Custom tag display */}
-              {selectedTags.filter(t => !(QUICK_TAGS[category] || []).includes(t)).map(tag => (
-                <motion.button key={tag} whileTap={{ scale: 0.9 }}
-                  onClick={() => toggleTag(tag)}
+              {/* Expand button */}
+              {!showAllCats && cats.length > 5 && (
+                <motion.button whileTap={{ scale: 0.88 }} onClick={() => setShowAllCats(true)}
                   style={{
-                    padding: "6px 12px", borderRadius: 18, border: "none", cursor: "pointer", fontSize: 12,
-                    background: `${T.primary}15`, color: T.primary, fontWeight: 600,
-                    outline: `1.5px solid ${T.primary}40`,
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+                    padding: "10px 4px", borderRadius: 14, border: "none", cursor: "pointer",
+                    background: "transparent",
                   }}
                 >
-                  {tag} ✕
+                  <div style={{
+                    width: 40, height: 40, borderRadius: 12,
+                    background: T.card, display: "flex", alignItems: "center", justifyContent: "center",
+                    boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
+                  }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <circle cx="5" cy="12" r="2" fill={T.muted} />
+                      <circle cx="12" cy="12" r="2" fill={T.muted} />
+                      <circle cx="19" cy="12" r="2" fill={T.muted} />
+                    </svg>
+                  </div>
+                  <span style={{ fontSize: 11, color: T.sub }}>更多</span>
                 </motion.button>
-              ))}
-              {/* 其他 — add custom tag */}
-              {!customTagInput ? (
-                <motion.button whileTap={{ scale: 0.9 }}
-                  onClick={() => setCustomTagInput(true)}
-                  style={{
-                    padding: "6px 12px", borderRadius: 18, border: "none", cursor: "pointer", fontSize: 12,
-                    background: T.card, color: T.sub,
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-                  }}
-                >其他</motion.button>
-              ) : (
-                <motion.div
-                  initial={{ width: 48 }} animate={{ width: 140 }}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 4,
-                    background: T.card, borderRadius: 18, padding: "2px 4px 2px 12px",
-                    outline: `1.5px solid ${T.primary}40`,
-                  }}
-                >
-                  <input
-                    autoFocus
-                    value={customTag}
-                    onChange={e => setCustomTag(e.target.value.slice(0, 10))}
-                    onKeyDown={e => e.key === "Enter" && addCustomTag()}
-                    onBlur={addCustomTag}
-                    placeholder="自定义..."
-                    style={{
-                      border: "none", outline: "none", background: "none",
-                      color: T.text, fontSize: 12, width: "100%",
-                      fontFamily: "inherit",
-                    }}
-                  />
-                </motion.div>
               )}
             </div>
-          </>
-        )}
 
-        {/* Note */}
-        <p style={{ color: T.text, fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
-          备注 <span style={{ fontWeight: 400, color: T.muted, fontSize: 11 }}>（可选）</span>
-        </p>
-        <div style={{ position: "relative", marginBottom: 6 }}>
-          <input
-            value={note}
-            onChange={e => { if (e.target.value.length <= 50) setNote(e.target.value); }}
-            onFocus={() => setShowKeypad(false)}
-            placeholder="例如：霸王茶姬"
-            style={{
-              width: "100%", boxSizing: "border-box",
-              background: T.card, border: `1px solid ${T.border}`,
-              borderRadius: 12, padding: "11px 50px 11px 14px",
-              color: T.text, fontSize: 13,
-              outline: "none", caretColor: T.primary,
-              fontFamily: "inherit",
-            }}
-          />
-          <span style={{
-            position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)",
-            color: T.muted, fontSize: 10,
-          }}>{charCount}/50</span>
+            {/* Budget hint */}
+            {type === "expense" && catBudget && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                style={{
+                  fontSize: 11, marginTop: 8, paddingLeft: 2, textAlign: "center",
+                  color: catPct > 100 ? "#D9534F" : catPct > 80 ? "#E8934A" : T.primary,
+                }}
+              >
+                {activeCat.name}本月已用 ¥{catSpent.toLocaleString()}/¥{catBudget.toLocaleString()}
+                {catPct > 100 && " · 已超支"}
+                {catPct > 80 && catPct <= 100 && " · 接近上限"}
+              </motion.p>
+            )}
+          </div>
+
+          {/* ── Tags ── */}
+          {hasTags && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {(QUICK_TAGS[category] || []).map(tag => {
+                  const isActive = selectedTags.includes(tag);
+                  return (
+                    <motion.button
+                      key={tag} whileTap={{ scale: 0.9 }}
+                      onClick={() => toggleTag(tag)}
+                      style={{
+                        padding: "7px 14px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: 13,
+                        background: isActive ? `${T.primary}15` : T.card,
+                        color: isActive ? T.primary : T.sub,
+                        fontWeight: isActive ? 600 : 400,
+                        outline: isActive ? `1.5px solid ${T.primary}40` : "none",
+                        boxShadow: isActive ? "none" : "0 1px 3px rgba(0,0,0,0.04)",
+                      }}
+                    >
+                      {tag}
+                    </motion.button>
+                  );
+                })}
+                {/* Custom tags */}
+                {selectedTags.filter(t => !(QUICK_TAGS[category] || []).includes(t)).map(tag => (
+                  <motion.button key={tag} whileTap={{ scale: 0.9 }}
+                    onClick={() => toggleTag(tag)}
+                    style={{
+                      padding: "7px 14px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: 13,
+                      background: `${T.primary}15`, color: T.primary, fontWeight: 600,
+                      outline: `1.5px solid ${T.primary}40`,
+                    }}
+                  >
+                    {tag} ✕
+                  </motion.button>
+                ))}
+                {/* Custom tag input */}
+                {!customTagInput ? (
+                  <motion.button whileTap={{ scale: 0.9 }}
+                    onClick={() => setCustomTagInput(true)}
+                    style={{
+                      padding: "7px 14px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: 13,
+                      background: T.card, color: T.muted,
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                    }}
+                  >+ 自定义</motion.button>
+                ) : (
+                  <motion.div
+                    initial={{ width: 60 }} animate={{ width: 140 }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 4,
+                      background: T.card, borderRadius: 20, padding: "3px 6px 3px 14px",
+                      outline: `1.5px solid ${T.primary}40`,
+                    }}
+                  >
+                    <input
+                      autoFocus
+                      value={customTag}
+                      onChange={e => setCustomTag(e.target.value.slice(0, 10))}
+                      onKeyDown={e => e.key === "Enter" && addCustomTag()}
+                      onBlur={addCustomTag}
+                      placeholder="自定义..."
+                      style={{
+                        border: "none", outline: "none", background: "none",
+                        color: T.text, fontSize: 13, width: "100%",
+                        fontFamily: "inherit",
+                      }}
+                    />
+                  </motion.div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Note ── */}
+          <div style={{ position: "relative", marginBottom: 16 }}>
+            <input
+              value={note}
+              onChange={e => { if (e.target.value.length <= 50) setNote(e.target.value); }}
+              onFocus={() => setShowKeypad(false)}
+              placeholder="添加备注..."
+              style={{
+                width: "100%", boxSizing: "border-box",
+                background: T.card, border: "none",
+                borderRadius: 14, padding: "13px 50px 13px 16px",
+                color: T.text, fontSize: 14,
+                outline: "none", caretColor: T.primary,
+                fontFamily: "inherit",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+              }}
+            />
+            <span style={{
+              position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)",
+              color: T.muted, fontSize: 10,
+            }}>{charCount}/50</span>
+          </div>
         </div>
       </div>
+
+      {/* ── Confirm Button (visible when keypad hidden & amount entered) ── */}
+      <AnimatePresence>
+        {!showKeypad && amount && +amount > 0 && !done && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            style={{ flexShrink: 0, padding: "0 24px 24px" }}
+          >
+            <motion.button whileTap={{ scale: 0.97 }} onClick={submit}
+              style={{
+                width: "100%", padding: "15px",
+                background: T.primary, border: "none", borderRadius: 16,
+                color: "#fff", fontSize: 16, fontWeight: 600,
+                cursor: "pointer",
+                boxShadow: `0 4px 16px ${T.primary}44`,
+              }}
+            >
+              保存 · ¥{amount}
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Number Pad — slide up when active ── */}
       <AnimatePresence>
@@ -354,29 +385,46 @@ export function AddTransaction({ onAdd, theme: T, onBack, budget, transactions }
             style={{ flexShrink: 0, overflow: "hidden" }}
           >
             <div style={{
-              display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 1,
-              background: T.border, borderRadius: "14px 14px 0 0", overflow: "hidden",
-              boxShadow: "0 -2px 8px rgba(0,0,0,0.04)",
+              display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 1,
+              background: T.border, borderRadius: "16px 16px 0 0", overflow: "hidden",
+              boxShadow: "0 -2px 10px rgba(0,0,0,0.05)",
             }}>
-              {["1","2","3","4","5","6","7","8","9",".","0","del"].map(key => (
+              {["1","2","3","del","4","5","6",".",  "7","8","9","0"].map(key => (
                 <motion.button
                   key={key}
-                  whileTap={{ scale: 0.92, backgroundColor: `${T.primary}15` }}
+                  whileTap={{ scale: 0.92, backgroundColor: `${T.primary}12` }}
                   onClick={() => handleKeyPress(key)}
                   style={{
-                    padding: "10px 0",
+                    padding: "14px 0",
                     background: T.card,
                     border: "none", cursor: "pointer",
-                    fontSize: key === "del" ? 0 : 18,
-                    fontWeight: 400,
+                    fontSize: key === "del" ? 0 : 20,
+                    fontWeight: 300,
                     color: T.text,
                     display: "flex", alignItems: "center", justifyContent: "center",
                     fontFamily: "inherit",
                   }}
                 >
-                  {key === "del" ? <Delete size={18} color={T.sub} /> : key}
+                  {key === "del" ? <Delete size={20} color={T.sub} /> : key}
                 </motion.button>
               ))}
+              {/* Bottom row: confirm button spans full width */}
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={() => { if (amount && +amount > 0) submit(); else setShowKeypad(false); }}
+                style={{
+                  gridColumn: "1 / -1",
+                  padding: "13px 0",
+                  background: amount && +amount > 0 ? T.primary : T.card,
+                  border: "none", cursor: "pointer",
+                  fontSize: 15, fontWeight: 600,
+                  color: amount && +amount > 0 ? "#fff" : T.muted,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontFamily: "inherit",
+                }}
+              >
+                {amount && +amount > 0 ? `完成 · ¥${amount}` : "收起键盘"}
+              </motion.button>
             </div>
           </motion.div>
         )}
