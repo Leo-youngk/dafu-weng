@@ -30,15 +30,18 @@ export const INCOME_CATS: Category[] = [
 
 export const CATEGORIES: Category[] = [...EXPENSE_CATS, ...INCOME_CATS];
 
-export const QUICK_TAGS = [
-  { label: "奶茶",   category: "food"      },
-  { label: "吃饭",   category: "food"      },
-  { label: "咖啡",   category: "food"      },
-  { label: "外卖",   category: "food"      },
-  { label: "零食",   category: "food"      },
-  { label: "水果",   category: "food"      },
-  { label: "日用品", category: "shopping"  },
-];
+export const QUICK_TAGS: Record<string, string[]> = {
+  food:          ["奶茶", "吃饭", "咖啡", "外卖", "零食", "水果"],
+  transport:     ["地铁", "公交", "打车", "加油", "停车"],
+  shopping:      ["日用品", "衣服", "数码", "美妆", "家居"],
+  housing:       ["房租", "水电", "物业", "维修"],
+  entertainment: ["电影", "游戏", "KTV", "旅行", "聚餐"],
+  medical:       ["药品", "门诊", "体检", "保险"],
+  education:     ["书籍", "课程", "文具", "考试"],
+  fitness:       ["健身卡", "运动装备", "私教", "瑜伽"],
+  pet:           ["猫粮", "狗粮", "宠物医院", "玩具"],
+  other:         ["红包", "礼物", "捐赠", "罚款"],
+};
 
 export const INITIAL_TRANSACTIONS: Transaction[] = [
   { id: "1",  type: "expense", amount: 18,   category: "food",      description: "奶茶",     date: "2026-05-24" },

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronLeft, Check, Delete } from "lucide-react";
-import { EXPENSE_CATS, INCOME_CATS, QUICK_TAGS, Transaction, BudgetConfig } from "./data";
+import { EXPENSE_CATS, INCOME_CATS, QUICK_TAGS, Transaction, BudgetConfig, CATEGORIES } from "./data";
 import { Theme } from "./themes";
 
 type Props = {
@@ -113,7 +113,7 @@ export function AddTransaction({ onAdd, theme: T, onBack, budget, transactions }
       <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
 
         {/* Amount display */}
-        <div style={{ textAlign: "center", padding: "8px 0 14px" }}>
+        <div style={{ textAlign: "center", padding: "4px 0 10px" }}>
           <AnimatePresence mode="wait">
             <motion.div
               key={done ? "done" : (amount || "0")}
@@ -121,9 +121,9 @@ export function AddTransaction({ onAdd, theme: T, onBack, budget, transactions }
               animate={{ opacity: 1 }}
               style={{ display: "inline-flex", alignItems: "baseline", gap: 4 }}
             >
-              <span style={{ color: T.sub, fontSize: 22, fontWeight: 300 }}>¥</span>
+              <span style={{ color: T.sub, fontSize: 18, fontWeight: 300 }}>¥</span>
               <span style={{
-                fontSize: 48, fontWeight: 300, letterSpacing: -2,
+                fontSize: 38, fontWeight: 300, letterSpacing: -2,
                 color: done ? T.primary : amount ? T.text : T.muted,
                 fontVariantNumeric: "tabular-nums", lineHeight: 1,
               }}>
@@ -134,12 +134,12 @@ export function AddTransaction({ onAdd, theme: T, onBack, budget, transactions }
         </div>
 
         {/* Type toggle — equal buttons */}
-        <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
+        <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
           {(["expense", "income"] as const).map(t => (
             <motion.button key={t} whileTap={{ scale: 0.95 }}
               onClick={() => switchType(t)}
               style={{
-                flex: 1, padding: "10px 0", borderRadius: 10, border: "none", cursor: "pointer",
+                flex: 1, padding: "8px 0", borderRadius: 10, border: "none", cursor: "pointer",
                 fontSize: 14, fontWeight: 500,
                 background: type === t ? T.primary : T.card,
                 color: type === t ? "#fff" : T.sub,
@@ -151,7 +151,7 @@ export function AddTransaction({ onAdd, theme: T, onBack, budget, transactions }
         </div>
 
         {/* Category section */}
-        <p style={{ color: T.text, fontSize: 13, fontWeight: 600, marginBottom: 10 }}>分类</p>
+        <p style={{ color: T.text, fontSize: 13, fontWeight: 600, marginBottom: 6 }}>分类</p>
         <div style={{
           display: "grid",
           gridTemplateColumns: "repeat(6, 1fr)",
@@ -161,7 +161,7 @@ export function AddTransaction({ onAdd, theme: T, onBack, budget, transactions }
           {displayCats.map(cat => {
             const active = category === cat.id;
             return (
-              <motion.button key={cat.id} whileTap={{ scale: 0.88 }} onClick={() => setCategory(cat.id)}
+              <motion.button key={cat.id} whileTap={{ scale: 0.88 }} onClick={() => { setCategory(cat.id); setSelectedTags([]); }}
                 style={{
                   display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
                   padding: "8px 2px", borderRadius: 12, border: "none", cursor: "pointer",
@@ -227,20 +227,19 @@ export function AddTransaction({ onAdd, theme: T, onBack, budget, transactions }
           <div style={{ height: 14, marginBottom: 4 }} />
         )}
 
-        {/* Tags (multi-select) */}
-        {type === "expense" && (
+        {/* Tags (multi-select, per-category) */}
+        {type === "expense" && (QUICK_TAGS[category] || []).length > 0 && (
           <>
             <p style={{ color: T.text, fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
               标签 <span style={{ fontWeight: 400, color: T.muted, fontSize: 11 }}>（可多选）</span>
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginBottom: 14 }}>
-              {QUICK_TAGS.map(tag => {
-                const cat = EXPENSE_CATS.find(c => c.id === tag.category);
-                const isActive = selectedTags.includes(tag.label);
+              {(QUICK_TAGS[category] || []).map(tag => {
+                const isActive = selectedTags.includes(tag);
                 return (
                   <motion.button
-                    key={tag.label} whileTap={{ scale: 0.9 }}
-                    onClick={() => toggleTag(tag.label)}
+                    key={tag} whileTap={{ scale: 0.9 }}
+                    onClick={() => toggleTag(tag)}
                     style={{
                       padding: "6px 12px", borderRadius: 18, border: "none", cursor: "pointer", fontSize: 12,
                       background: isActive ? `${T.primary}15` : T.card,
@@ -251,13 +250,12 @@ export function AddTransaction({ onAdd, theme: T, onBack, budget, transactions }
                       boxShadow: isActive ? "none" : "0 1px 3px rgba(0,0,0,0.04)",
                     }}
                   >
-                    {cat && <span style={{ fontSize: 12 }}>{cat.icon}</span>}
-                    {tag.label}
+                    {tag}
                   </motion.button>
                 );
               })}
               {/* Custom tag display */}
-              {selectedTags.filter(t => !QUICK_TAGS.some(q => q.label === t)).map(tag => (
+              {selectedTags.filter(t => !(QUICK_TAGS[category] || []).includes(t)).map(tag => (
                 <motion.button key={tag} whileTap={{ scale: 0.9 }}
                   onClick={() => toggleTag(tag)}
                   style={{
@@ -308,10 +306,10 @@ export function AddTransaction({ onAdd, theme: T, onBack, budget, transactions }
         )}
 
         {/* Note */}
-        <p style={{ color: T.text, fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+        <p style={{ color: T.text, fontSize: 13, fontWeight: 600, marginBottom: 4 }}>
           备注 <span style={{ fontWeight: 400, color: T.muted, fontSize: 11 }}>（可选）</span>
         </p>
-        <div style={{ position: "relative", marginBottom: 10 }}>
+        <div style={{ position: "relative", marginBottom: 6 }}>
           <input
             value={note}
             onChange={e => { if (e.target.value.length <= 50) setNote(e.target.value); }}
@@ -345,10 +343,10 @@ export function AddTransaction({ onAdd, theme: T, onBack, budget, transactions }
             whileTap={{ scale: 0.92, backgroundColor: `${T.primary}15` }}
             onClick={() => handleKeyPress(key)}
             style={{
-              padding: "14px 0",
+              padding: "10px 0",
               background: T.card,
               border: "none", cursor: "pointer",
-              fontSize: key === "del" ? 0 : 20,
+              fontSize: key === "del" ? 0 : 18,
               fontWeight: 400,
               color: T.text,
               display: "flex", alignItems: "center", justifyContent: "center",
